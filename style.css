@@ -1,0 +1,17 @@
+.container {
+    border: 2px solid black;
+}
+
+.card {
+    width: 18rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.animeList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 16px; 
+    padding: 16px;
+}
