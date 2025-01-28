@@ -1,6 +1,8 @@
 let API_URL = "https://graphql.anilist.co";
 let allGenres = new Set();
 let animeData = [];
+let favorites = [];
+let isFavoritesView = false;
 let query = `
             query {
                 Page(page: 1, perPage: 20) {
@@ -45,15 +47,14 @@ function fetchAnime() {
 
 // function to reload the animelist
 function reload() {
+    isFavoritesView = false;
 
     // clear container
     let container = document.querySelector("#container");
     container.innerHTML = "";
 
-    // fetch
+    // fetch and display
     fetchAnime().then(animeList => {
-        
-        // display
         generateGenreCheckboxes();
         displayAnimeList(animeList);
     });
@@ -128,6 +129,18 @@ function createCard(anime){
     animeGenre.classList = "card-text";
     animeGenre.innerHTML = "Genres: " + anime.genres.join(", ");
 
+    let button = document.createElement("button"); // favorite add
+    button.classList = "btn btn-info";
+    button.value = anime.id;
+
+    if (favorites.includes(String(anime.id))) {
+        button.innerHTML = "Remove from Favorites";
+        button.setAttribute("onclick", "removeFavorite(value)");
+    } else {
+        button.innerHTML = "Add to Favorites";
+        button.setAttribute("onclick", "addFavorite(value)");
+    }
+
     let animeText = document.createElement("p"); // description
     animeText.classList = "card-text";
     animeText.innerHTML = anime.description;
@@ -135,6 +148,7 @@ function createCard(anime){
     // create card
     cardBody.append(animeTitle);
     cardBody.append(animeGenre);
+    cardBody.append(button);
     cardBody.append(animeText);
     card.append(img);
     card.append(cardBody);
@@ -153,21 +167,36 @@ function filterAnime() {
         animeList.remove();
     }
 
-    let filteredAnime = animeData || [];
+    let filteredAnime = [];
 
-    // Filter selected genres
-    if (selectedGenres.length > 0) {
-        filteredAnime = filteredAnime.filter(anime =>
-            anime.genres.some(genre => selectedGenres.includes(genre))
+    // Filter selected genres and display
+    if (isFavoritesView) {
+
+        favorites.forEach(id =>
+            filteredAnime = [...filteredAnime,animeData.find(anime => anime.id == id)]
         );
+        if (selectedGenres.length > 0) {
+            filteredAnime = filteredAnime.filter(anime =>
+                anime.genres.some(genre => selectedGenres.includes(genre))
+            );
+        }
+    } else {
+
+        filteredAnime = animeData || [];
+
+        if (selectedGenres.length > 0) {
+            filteredAnime = filteredAnime.filter(anime =>
+                anime.genres.some(genre => selectedGenres.includes(genre))
+            );
+        }
     }
 
-    // display
     displayAnimeList(filteredAnime);
 }
 
 // random anime
 function randomAnime(){
+    isFavoritesView = false;
 
     // find random anime
     let randomNumber = Math.floor(Math.random() * animeData.length);
@@ -176,9 +205,9 @@ function randomAnime(){
     // clear folder
     let container = document.querySelector("#container");
 
-    let animeListOld = document.querySelector("#animeList");
-    if (animeListOld) {
-        animeListOld.remove();
+    let animeListold = document.querySelector("#animeList");
+    if (animeListold) {
+        animeListold.remove();
     }
 
     let animeList = document.createElement("div");
@@ -189,4 +218,64 @@ function randomAnime(){
     let card = createCard(randomAnime);
     animeList.append(card);
     container.append(animeList);
+}
+
+function loadFavorites() {
+    isFavoritesView = true;
+
+    // clear folder
+    let container = document.querySelector("#container");
+
+    let animeListold = document.querySelector("#animeList");
+    if (animeListold) {
+        animeListold.remove();
+    }
+
+    let animeList = document.createElement("div");
+    animeList.classList = "animeList";
+    animeList.id = "animeList";
+
+    // load list
+    favorites.forEach(id => {
+
+        //find by id
+        let anime = animeData.find(anime => anime.id == id);
+
+        // create card
+        let card = createCard(anime);
+        animeList.append(card);
+    });
+
+    // append
+    container.append(animeList);
+}
+
+// add favorites
+function addFavorite(id) {
+
+    if (favorites.includes(id)) {
+        alert("already in favorites")
+    } else {
+        favorites = [...favorites, id]
+        alert("added to Favorites");
+    }
+
+    if (isFavoritesView) {
+        loadFavorites();
+    } else {
+        reload();
+    }
+}
+
+// remove favorites
+function removeFavorite(id) {
+
+    favorites = favorites.filter(favoriteId => favoriteId !== id);
+    alert("removed from Favorites");
+
+    if (isFavoritesView) {
+        loadFavorites();
+    } else {
+        reload();
+    }
 }
