@@ -1,5 +1,6 @@
 let API_URL = "https://graphql.anilist.co";
-
+let allGenres = new Set();
+let animeData = [];
 let query = `
             query {
                 Page(page: 1, perPage: 20) {
@@ -18,10 +19,11 @@ let query = `
             }
         `;
 
-let allGenres = new Set();
+reload();
 
-function reload() {
-    fetch(API_URL, {
+// fetch from public api
+function fetchAnime() {
+    return fetch(API_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -30,24 +32,45 @@ function reload() {
     })
     .then(response => response.json())
     .then(data => {
-        let animeList = data.data.Page.media;
-
+        animeData = data.data.Page.media || [];
         allGenres.clear();
-        animeList.forEach(anime => {
+
+        animeData.forEach(anime => {
             anime.genres.forEach(genre => allGenres.add(genre));
         });
 
-        generateGenreCheckboxes();
-        displayAnimeList(animeList);
-    })
-    .catch(error => {
-        console.error("Error fetching anime data:", error);
+        return animeData;
     });
 }
 
-function generateGenreCheckboxes() {
-    let genreContainer = document.querySelector("#genreFilter");
+// function to reload the animelist
+function reload() {
 
+    // clear container
+    let container = document.querySelector("#container");
+    container.innerHTML = "";
+
+    // fetch
+    fetchAnime().then(animeList => {
+        
+        // display
+        generateGenreCheckboxes();
+        displayAnimeList(animeList);
+    });
+}
+
+// function to generate checkboxes dynamicly
+function generateGenreCheckboxes() {
+    let container = document.querySelector("#container");
+
+    let genreTitle = document.createElement("h3"); // title
+    genreTitle.innerHTML = "Filter by Genre";
+
+    let genreContainer = document.createElement("div"); // container for checkboxes
+    genreContainer.classList = "genreFilter";
+    genreContainer.id = "genreFilter";
+
+    // generate checkboxes
     allGenres.forEach(genre => {
         let label = document.createElement("label");
         label.classList = "checkbox-label";
@@ -55,77 +78,115 @@ function generateGenreCheckboxes() {
         let checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.value = genre;
-        checkbox.addEventListener("change", filterAnime);
+        checkbox.addEventListener("change", filterAnime); // when checked
 
         label.appendChild(checkbox);
         label.appendChild(document.createTextNode(" " + genre));
 
         genreContainer.appendChild(label);
     });
+
+    // append
+    container.append(genreTitle);
+    container.append(genreContainer);
 }
 
+// function to display animes
+function displayAnimeList(animes) {
+    let container = document.querySelector("#container");
+
+    let animeList = document.createElement("div"); // container for anime cards
+    animeList.classList = "animeList";
+    animeList.id = "animeList";
+
+    animes.forEach(anime => {
+        let card = createCard(anime);
+        animeList.append(card);
+    });
+
+    // append list
+    container.append(animeList);
+}
+
+function createCard(anime){
+    let card = document.createElement("div"); // card
+    card.classList = "card";
+
+    let img = document.createElement("img"); // image
+    img.src = anime.coverImage.extraLarge;
+    img.classList = "card-img-top";
+    img.alt = anime.title.romaji;
+
+    let cardBody = document.createElement("div");
+    cardBody.classList = "card-body";
+
+    let animeTitle = document.createElement("h5"); // title
+    animeTitle.classList = "card-title";
+    animeTitle.innerHTML = anime.title.romaji;
+
+    let animeGenre = document.createElement("p") // genres
+    animeGenre.classList = "card-text";
+    animeGenre.innerHTML = "Genres: " + anime.genres.join(", ");
+
+    let animeText = document.createElement("p"); // description
+    animeText.classList = "card-text";
+    animeText.innerHTML = anime.description;
+
+    // create card
+    cardBody.append(animeTitle);
+    cardBody.append(animeGenre);
+    cardBody.append(animeText);
+    card.append(img);
+    card.append(cardBody);
+
+    return card;
+}
+
+// filter
 function filterAnime() {
     let selectedGenres = Array.from(document.querySelectorAll("#genreFilter input:checked"))
-                             .map(checkbox => checkbox.value);
+    .map(checkbox => checkbox.value);
 
-    fetch(API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query })
-    })
-    .then(response => response.json())
-    .then(data => {
-        let animeList = data.data.Page.media;
+    // clear anime container
+    let animeList = document.querySelector("#animeList");
+    if (animeList) {
+        animeList.remove();
+    }
 
-        // Filter by selected genres
-        if (selectedGenres.length > 0) {
-            animeList = animeList.filter(anime =>
-                anime.genres.some(genre => selectedGenres.includes(genre))
-            );
-        }
+    let filteredAnime = animeData || [];
 
-        displayAnimeList(animeList);
-    })
-    .catch(error => {
-        console.error("Error fetching anime data:", error);
-    });
+    // Filter selected genres
+    if (selectedGenres.length > 0) {
+        filteredAnime = filteredAnime.filter(anime =>
+            anime.genres.some(genre => selectedGenres.includes(genre))
+        );
+    }
+
+    // display
+    displayAnimeList(filteredAnime);
 }
 
-function displayAnimeList(animes) {
-    let container = document.querySelector("#animeList");
-    container.innerHTML = ""; // clear
+// random anime
+function randomAnime(){
 
-    animes.slice(0,10).forEach(anime => {
-        let card = document.createElement("div");
-        card.classList = "card"
+    // find random anime
+    let randomNumber = Math.floor(Math.random() * animeData.length);
+    let randomAnime = animeData[randomNumber];
 
-        let img = document.createElement("img");
-        img.src = anime.coverImage.extraLarge;
-        img.classList = "card-img-top";
-        img.alt = anime.title.romaji;
+    // clear folder
+    let container = document.querySelector("#container");
 
-        let cardBody = document.createElement("div");
-        cardBody.classList = "card-body";
+    let animeListOld = document.querySelector("#animeList");
+    if (animeListOld) {
+        animeListOld.remove();
+    }
 
-        let animeTitle = document.createElement("h5");
-        animeTitle.classList = "card-title";
-        animeTitle.innerHTML = anime.title.romaji;
+    let animeList = document.createElement("div");
+    animeList.classList = "animeList";
+    animeList.id = "animeList";
 
-        let animeGenre = document.createElement("p")
-        animeGenre.classList = "card-text";
-        animeGenre.innerHTML = "Genres: " + anime.genres.join(", ");
-
-        let animeText = document.createElement("p");
-        animeText.classList = "card-text";
-        animeText.innerHTML = anime.description;
-
-        cardBody.append(animeTitle);
-        cardBody.append(animeGenre);
-        cardBody.append(animeText);
-        card.append(img);
-        card.append(cardBody);
-        container.append(card);
-    });
-}             
+    // create card and append
+    let card = createCard(randomAnime);
+    animeList.append(card);
+    container.append(animeList);
+}
